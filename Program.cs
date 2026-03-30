@@ -1,3 +1,4 @@
+using System.Data.Common;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -12,15 +13,16 @@ builder.Services.AddSingleton(mySystemState);
 // --- 2. THE SERVICES ---
 builder.Services.AddHealthChecksUI(setup =>
 {
-    setup.AddHealthCheckEndpoint("Main Hub", "http://localhost:5000/health");
+    setup.AddHealthCheckEndpoint("Main Hub", "/health");
 })
 .AddInMemoryStorage();
 
 builder.Services.AddHealthChecks()
-    .AddCheck("Manual_Kill_Switch", () => 
-        mySystemState.IsHealthy 
-        ? HealthCheckResult.Healthy("Systems Nominal") 
-        : HealthCheckResult.Unhealthy("Manual Failure Active"));
+    .AddCheck("Manual_Kill_Switch", () =>
+        mySystemState.IsHealthy
+        ? HealthCheckResult.Healthy("Systems Nominal")
+        : HealthCheckResult.Unhealthy("Manual Failure Active"))
+    .AddSqlServer(connectionString: builder.Configuration.GetConnectionString("MicroserviceDb"), name: "Centralized_SQL_DB");
 
 var app = builder.Build();
 
@@ -33,10 +35,10 @@ app.MapGet("/fix", (SystemState state) => { state.IsHealthy = true; return "Syst
 
 app.UseEndpoints(endpoints =>
 {
-    // Dashboard: http://localhost:5000/dashboard
+    // Dashboard: http://localhost:5154/dashboard
     endpoints.MapHealthChecksUI(setup => { setup.UIPath = "/dashboard"; });
     
-    // API Data: http://localhost:5000/health
+    // API Data: http://localhost:5154/health
     endpoints.MapHealthChecks("/health", new HealthCheckOptions
     {
         ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
