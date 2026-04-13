@@ -24,6 +24,14 @@ builder.Services.AddHealthChecks()
         : HealthCheckResult.Unhealthy("Manual Failure Active"))
     .AddSqlServer(connectionString: builder.Configuration.GetConnectionString("MicroserviceDb"), name: "Centralized_SQL_DB");
 
+builder.Services.AddSingleton<IHealthCheckPublisher, DatabaseHealthPublisher>();
+
+builder.Services.Configure<HealthCheckPublisherOptions>(options =>
+{
+    options.Period = TimeSpan.FromMinutes(1); // Check and Log every 1 minute
+    options.Timeout = TimeSpan.FromSeconds(30); // Stop trying if DB is too slow
+});
+
 var app = builder.Build();
 
 // --- 3. THE ROUTES ---
