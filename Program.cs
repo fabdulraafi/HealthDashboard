@@ -2,6 +2,7 @@ using System.Data.Common;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,7 @@ builder.Services.AddHealthChecksUI(setup =>
 })
 .AddInMemoryStorage();
 
+
 builder.Services.AddHealthChecks()
     .AddCheck("Manual_Kill_Switch", () =>
         mySystemState.IsHealthy
@@ -31,6 +33,12 @@ builder.Services.Configure<HealthCheckPublisherOptions>(options =>
     options.Period = TimeSpan.FromMinutes(1); // Check and Log every 1 minute
     options.Timeout = TimeSpan.FromSeconds(30); // Stop trying if DB is too slow
 });
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Seq("http://localhost:5341")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 var app = builder.Build();
 
