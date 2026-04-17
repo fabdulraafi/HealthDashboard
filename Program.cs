@@ -25,7 +25,8 @@ builder.Services.AddHealthChecks()
         mySystemState.IsHealthy
         ? HealthCheckResult.Healthy("Systems Nominal")
         : HealthCheckResult.Unhealthy("Manual Failure Active"))
-    .AddSqlServer(connectionString: builder.Configuration.GetConnectionString("MicroserviceDb"), name: "Centralized_SQL_DB");
+    .AddSqlServer(connectionString: builder.Configuration.GetConnectionString("MicroserviceDb"), name: "Centralized_SQL_DB")
+    .AddUrlGroup(new Uri("http://localhost:8081/health"), name: "Seq_Server");
 
 builder.Services.AddSingleton<IHealthCheckPublisher, DatabaseHealthPublisher>();
 
