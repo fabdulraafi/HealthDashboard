@@ -1,0 +1,211 @@
+@page "/dashboard"
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager Nav
+
+<div style="display:flex; height:100vh; font-family:sans-serif;">
+
+  <!-- SIDEBAR -->
+  <div style="width:200px; background:white; border-right:0.5px solid #e0e0e0; display:flex; flex-direction:column; padding:1.25rem 0; flex-shrink:0;">
+    <div style="font-size:14px; font-weight:500; padding:0 1.25rem 1.25rem; border-bottom:0.5px solid #e0e0e0; margin-bottom:0.75rem;">
+      Health Dashboard
+      <span style="font-size:11px; color:gray; display:block; font-weight:400; margin-top:2px;">Microservices Monitor</span>
+    </div>
+    <a href="/dashboard" style="text-decoration:none; display:flex; align-items:center; gap:8px; padding:8px 1.25rem; font-size:13px; font-weight:500; background:#f5f5f5; border-left:2px solid #639922; color:black;">
+        <div style="width:7px; height:7px; border-radius:50%; background:#639922;"></div>
+        Services
+    </a>
+    <a href="/history" style="text-decoration:none; display:flex; align-items:center; gap:8px; padding:8px 1.25rem; font-size:13px; color:gray;">
+        <div style="width:7px; height:7px; border-radius:50%; background:#ccc;"></div>
+        History
+    </a>
+    <div style="display:flex; align-items:center; gap:8px; padding:8px 1.25rem; font-size:13px; color:gray;">
+        <div style="width:7px; height:7px; border-radius:50%; background:#ccc;"></div>
+        Settings
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div style="flex:1; overflow-y:auto; padding:1.5rem; display:flex; flex-direction:column; gap:1rem; background:#fafafa;">
+
+    <!-- TOP BAR -->
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="font-size:16px; font-weight:500;">Service Status</div>
+      <div style="font-size:11px; color:gray;">Last updated: @lastUpdated</div>
+    </div>
+
+    <!-- STATUS BANNER -->
+    @if (services != null)
+    {
+      var unhealthyCount = services.Count(s => s.Status == "Unhealthy");
+      if (unhealthyCount == 0)
+      {
+        <div style="background:#EAF3DE; border:0.5px solid #C0DD97; border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:8px;">
+          <div style="width:8px; height:8px; border-radius:50%; background:#639922;"></div>
+          <span style="font-size:13px; font-weight:500; color:#3B6D11;">All Systems Operational</span>
+        </div>
+      }
+      else
+      {
+        <div style="background:#FCEBEB; border:0.5px solid #F7C1C1; border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:8px;">
+          <div style="width:8px; height:8px; border-radius:50%; background:#E24B4A;"></div>
+          <span style="font-size:13px; font-weight:500; color:#A32D2D;">@unhealthyCount service@(unhealthyCount > 1 ? "s are" : " is") unhealthy — attention required</span>
+        </div>
+      }
+    }
+
+    <!-- SUMMARY CARDS -->
+    @if (services != null)
+    {
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+        <div style="background:white; border-radius:8px; border:0.5px solid #e0e0e0; padding:12px 14px;">
+          <div style="font-size:22px; font-weight:500;">@services.Count</div>
+          <div style="font-size:11px; color:gray; margin-top:2px;">Total services</div>
+        </div>
+        <div style="background:white; border-radius:8px; border:0.5px solid #e0e0e0; padding:12px 14px;">
+          <div style="font-size:22px; font-weight:500; color:#3B6D11;">@services.Count(s => s.Status == "Healthy")</div>
+          <div style="font-size:11px; color:gray; margin-top:2px;">Healthy</div>
+        </div>
+        <div style="background:white; border-radius:8px; border:0.5px solid #e0e0e0; padding:12px 14px;">
+          <div style="font-size:22px; font-weight:500; color:#A32D2D;">@services.Count(s => s.Status == "Unhealthy")</div>
+          <div style="font-size:11px; color:gray; margin-top:2px;">Unhealthy</div>
+        </div>
+      </div>
+    }
+
+    <!-- SERVICE LIST -->
+    <div style="font-size:13px; font-weight:500; color:gray;">Services</div>
+
+    @if (services == null)
+    {
+      <p style="color:gray; font-size:13px;">Loading...</p>
+    }
+    else if (services.Count == 0)
+    {
+      <p style="color:red; font-size:13px;">No services found.</p>
+    }
+    else
+    {
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        @foreach (var service in services)
+        {
+          <div style="background:white; border-radius:8px; border:0.5px solid #e0e0e0; padding:10px 12px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:4px; height:32px; border-radius:2px; background:@GetBarColor(service.Status);"></div>
+              <div style="flex:1; font-size:13px; font-weight:500;">@service.Name</div>
+              <span style="font-size:11px; font-weight:500; padding:3px 10px; border-radius:20px; background:@GetBadgeBg(service.Status); color:@GetBadgeColor(service.Status);">
+                @service.Status
+              </span>
+              <div style="font-size:11px; color:gray; min-width:40px; text-align:right;">
+                @(service.Duration > 0 ? $"{service.Duration}ms" : "—")
+              </div>
+            </div>
+
+            @if (service.Status == "Unhealthy" && !string.IsNullOrEmpty(service.ErrorMessage))
+            {
+              <div style="font-size:11px; color:#A32D2D; margin-top:6px; padding-left:14px;">@service.ErrorMessage</div>
+            }
+
+            @if (service.Name == "Manual_Kill_Switch")
+            {
+              <div style="display:flex; gap:6px; margin-top:8px; padding-left:14px;">
+                <button style="font-size:11px; padding:4px 12px; border-radius:6px; border:0.5px solid #F7C1C1; background:#FCEBEB; color:#A32D2D; cursor:pointer;" @onclick="BreakSystem">Break</button>
+                <button style="font-size:11px; padding:4px 12px; border-radius:6px; border:0.5px solid #C0DD97; background:#EAF3DE; color:#3B6D11; cursor:pointer;" @onclick="FixSystem">Fix</button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+  </div>
+</div>
+
+@code {
+    private List<ServiceHealth>? services;
+    private string lastUpdated = "—";
+    private System.Threading.Timer? timer;
+    private bool _loading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHealth();
+        timer = new System.Threading.Timer(async _ =>
+        {
+            if (!_loading)
+            {
+                await LoadHealth();
+                await InvokeAsync(StateHasChanged);
+            }
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadHealth()
+    {
+        _loading = true;
+        try
+        {
+            using var client = new System.Net.Http.HttpClient();
+            var url = Nav.BaseUri + "health";
+            var response = await client.GetAsync(url);
+            var json = await response.Content.ReadAsStringAsync();
+            var doc = JsonDocument.Parse(json);
+            var entries = doc.RootElement.GetProperty("entries");
+
+            services = new List<ServiceHealth>();
+            foreach (var entry in entries.EnumerateObject())
+            {
+                var value = entry.Value;
+                var durationStr = value.GetProperty("duration").GetString() ?? "00:00:00";
+                var duration = TimeSpan.Parse(durationStr);
+                var description = value.TryGetProperty("description", out var desc) ? desc.GetString() : null;
+                var status = value.GetProperty("status").GetString() ?? "";
+
+                services.Add(new ServiceHealth
+                {
+                    Name = entry.Name,
+                    Status = status,
+                    Duration = (int)duration.TotalMilliseconds,
+                    ErrorMessage = status == "Unhealthy" ? description : null
+                });
+            }
+
+            lastUpdated = DateTime.Now.ToString("hh:mm:ss tt");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DASHBOARD ERROR] {ex.Message}");
+            services = new List<ServiceHealth>();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task BreakSystem()
+    {
+        using var client = new System.Net.Http.HttpClient();
+        await client.GetAsync(Nav.BaseUri + "break");
+        await LoadHealth();
+    }
+
+    private async Task FixSystem()
+    {
+        using var client = new System.Net.Http.HttpClient();
+        await client.GetAsync(Nav.BaseUri + "fix");
+        await LoadHealth();
+    }
+
+    private string GetBarColor(string status) => status == "Healthy" ? "#639922" : status == "Degraded" ? "#BA7517" : "#E24B4A";
+    private string GetBadgeBg(string status) => status == "Healthy" ? "#EAF3DE" : status == "Degraded" ? "#FAEEDA" : "#FCEBEB";
+    private string GetBadgeColor(string status) => status == "Healthy" ? "#3B6D11" : status == "Degraded" ? "#854F0B" : "#A32D2D";
+
+    public class ServiceHealth
+    {
+        public string Name { get; set; } = "";
+        public string Status { get; set; } = "";
+        public int Duration { get; set; }
+        public string? ErrorMessage { get; set; }
+    }
+}
