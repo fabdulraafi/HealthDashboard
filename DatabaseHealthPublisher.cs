@@ -7,6 +7,8 @@ public class DatabaseHealthPublisher : IHealthCheckPublisher
 {
     private readonly string _connectionString;
     private readonly string _sendGridApiKey;
+    private readonly Dictionary<string, HealthStatus> _previousStatuses = new();
+
 
     public DatabaseHealthPublisher(IConfiguration configuration)
     {
