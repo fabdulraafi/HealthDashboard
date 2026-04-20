@@ -1,59 +1,58 @@
-using System.Data.Common;
+using Serilog;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Seq("http://localhost:5341")
+    .CreateLogger();
+
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Host.UseSerilog();
+
 // --- 1. THE DATA STATE ---
-// We create a simple object to hold our "Health" status
 var mySystemState = new SystemState { IsHealthy = true };
 builder.Services.AddSingleton(mySystemState);
 
 // --- 2. THE SERVICES ---
-builder.Services.AddHealthChecksUI(setup =>
-{
-    setup.AddHealthCheckEndpoint("Main Hub", "/health");
-})
-.AddInMemoryStorage();
+builder.Services.AddRazorPages();
+builder.Services.AddServerSideBlazor();
+builder.Services.AddHttpClient();
 
 builder.Services.AddHealthChecks()
     .AddCheck("Manual_Kill_Switch", () =>
         mySystemState.IsHealthy
         ? HealthCheckResult.Healthy("Systems Nominal")
         : HealthCheckResult.Unhealthy("Manual Failure Active"))
-    .AddSqlServer(connectionString: builder.Configuration.GetConnectionString("MicroserviceDb"), name: "Centralized_SQL_DB");
+    .AddSqlServer(connectionString: builder.Configuration.GetConnectionString("MicroserviceDb"), name: "Centralized_SQL_DB")
+    .AddUrlGroup(new Uri("http://localhost:8081/health"), name: "Seq_Server");
 
 builder.Services.AddSingleton<IHealthCheckPublisher, DatabaseHealthPublisher>();
 
 builder.Services.Configure<HealthCheckPublisherOptions>(options =>
 {
-    options.Period = TimeSpan.FromMinutes(1); // Check and Log every 1 minute
-    options.Timeout = TimeSpan.FromSeconds(30); // Stop trying if DB is too slow
+    options.Period = TimeSpan.FromMinutes(1);
+    options.Timeout = TimeSpan.FromSeconds(30);
 });
 
 var app = builder.Build();
 
 // --- 3. THE ROUTES ---
+app.UseStaticFiles();
 app.UseRouting();
 
-// Testing Routes
 app.MapGet("/break", (SystemState state) => { state.IsHealthy = false; return "System Broken"; });
 app.MapGet("/fix", (SystemState state) => { state.IsHealthy = true; return "System Fixed"; });
 
-app.UseEndpoints(endpoints =>
+app.MapHealthChecks("/health", new HealthCheckOptions
 {
-    // Dashboard: http://localhost:5154/dashboard
-    endpoints.MapHealthChecksUI(setup => { setup.UIPath = "/dashboard"; });
-    
-    // API Data: http://localhost:5154/health
-    endpoints.MapHealthChecks("/health", new HealthCheckOptions
-    {
-        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-    });
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
+
+app.MapBlazorHub();
+app.MapFallbackToPage("/_Host");
 
 app.Run();
 
-// THE CLASS DEFINITION
 public class SystemState { public bool IsHealthy { get; set; } }
