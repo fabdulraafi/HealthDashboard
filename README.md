@@ -8,6 +8,7 @@ A real-time health monitoring platform for .NET-based microservice architectures
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop)
+- **GlobalProtect VPN**: Required to establish a connection with the university's SSMS SQL Server.
 
 ---
 
@@ -38,11 +39,11 @@ dotnet run
 
 ## Step 4 — Open the Dashboard
 
-| Page | URL |
-|---|---|
-| Dashboard | http://localhost:5154/dashboard |
-| Health History | http://localhost:5154/history |
-| Seq Logs | http://localhost:8081 |
+| Page | URL | Credentials |
+|---|---|---|
+| Dashboard | http://localhost:5154/dashboard | N/A |
+| Health History | http://localhost:5154/history | N/A |
+| Seq Logs | http://localhost:8081 | **User:** admin / **Pass:** Admin123 |
 
 ---
 
@@ -50,3 +51,6 @@ dotnet run
 
 - Visit http://localhost:5154/break to simulate a service failure
 - Visit http://localhost:5154/fix to recover it
+
+---
+**Note:** Ensure that you replace all database placeholders in appsettings.json and appsettings.Development.json with your own SSMS credentials (Server Name, Database Name, User ID, and Password) to ensure a successful connection to the persistent layer.
